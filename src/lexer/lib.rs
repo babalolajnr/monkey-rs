@@ -72,10 +72,17 @@ impl Lexer {
     /// The token as a `Token` enum variant.
     fn handle_double_char_token(&mut self) -> Token {
         let token_type = self.get_double_char_token_type();
+        let literal = match token_type {
+            TokenType::EQ => "==".to_string(),
+            TokenType::NOTEQ => "!=".to_string(),
+            TokenType::ASSIGN => "=".to_string(),
+            TokenType::BANG => "!".to_string(),
+            _ => panic!("Unexpected token type"),
+        };
         if matches!(token_type, TokenType::EQ | TokenType::NOTEQ) {
             self.read_char();
         }
-        Token::new(token_type, self.character.to_string())
+        Token::new(token_type, literal)
     }
 
     /// Determines the token type for double character tokens.
@@ -218,10 +225,12 @@ mod tests {
             Token::new(TokenType::IDENT, "five".to_string()),
             Token::new(TokenType::ASSIGN, "=".to_string()),
             Token::new(TokenType::INT, "5".to_string()),
+            Token::new(TokenType::SEMICOLON, ";".to_string()),
             Token::new(TokenType::LET, "let".to_string()),
             Token::new(TokenType::IDENT, "ten".to_string()),
             Token::new(TokenType::ASSIGN, "=".to_string()),
             Token::new(TokenType::INT, "10".to_string()),
+            Token::new(TokenType::SEMICOLON, ";".to_string()),
             Token::new(TokenType::LET, "let".to_string()),
             Token::new(TokenType::IDENT, "add".to_string()),
             Token::new(TokenType::ASSIGN, "=".to_string()),
@@ -279,8 +288,6 @@ mod tests {
             Token::new(TokenType::RBRACE, "}".to_string()),
             Token::new(TokenType::INT, "10".to_string()),
             Token::new(TokenType::EQ, "==".to_string()),
-            Token::new(TokenType::INT, "10".to_string()),
-            Token::new(TokenType::SEMICOLON, ";".to_string()),
             Token::new(TokenType::INT, "10".to_string()),
             Token::new(TokenType::SEMICOLON, ";".to_string()),
             Token::new(TokenType::INT, "10".to_string()),
@@ -360,25 +367,6 @@ mod tests {
             assert_eq!(expected_token, token);
         }
     }
-
-    // #[test]
-    // fn test_handle_single_char_token() {
-    //     let input = "let five = 5;";
-    //     let mut lexer = Lexer::new(input.to_string());
-
-    //     let expected_tokens = vec![
-    //         Token::new(TokenType::LET, "let".to_string()),
-    //         Token::new(TokenType::IDENT, "five".to_string()),
-    //         Token::new(TokenType::ASSIGN, "=".to_string()),
-    //         Token::new(TokenType::INT, "5".to_string()),
-    //         Token::new(TokenType::SEMICOLON, ";".to_string()),
-    //     ];
-
-    //     for expected_token in expected_tokens {
-    //         let token = lexer.next_token();
-    //         assert_eq!(expected_token, token);
-    //     }
-    // }
 
     #[test]
     fn test_next_token_with_whitespace() {
