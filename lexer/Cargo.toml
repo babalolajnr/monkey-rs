@@ -1,0 +1,20 @@
+[package]
+name = "monkey-lexer"
+version = "0.1.0"
+description = "a lexer for monkey lang"
+authors = ["babalolajnr <babalolajnr@gmail.com>"]
+edition = "2021"
+license = "MIT"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "lexer"
+path = "lib.rs"
+
+[[bin]]
+name = "monkey-lexer"
+path = "main.rs"
+
+[dependencies]
+anyhow = "1.0.81"

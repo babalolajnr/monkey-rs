@@ -1,4 +1,6 @@
-use crate::token::lib::{lookup_ident, Token, TokenType};
+use token::{lookup_ident, Token, TokenType};
+
+pub mod token;
 
 /// The `Lexer` struct represents a lexer that tokenizes input strings.
 pub struct Lexer {
