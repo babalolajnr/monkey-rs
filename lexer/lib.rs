@@ -3,6 +3,7 @@ use token::{lookup_ident, Token, TokenType};
 pub mod token;
 
 /// The `Lexer` struct represents a lexer that tokenizes input strings.
+#[derive(Debug, Clone)]
 pub struct Lexer {
     input: String,
     position: usize,

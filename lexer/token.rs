@@ -1,45 +1,91 @@
 /// Represents the different types of tokens in the Monkey programming language.
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum TokenType {
     ILLEGAL, // Represents an illegal or unrecognized token
     EOF,     // Represents the end of the file
 
     // Identifiers + literals
-    IDENT, // Represents an identifier
-    INT,   // Represents an integer literal
+    /// Represents an identifier
+    IDENT,
+
+    /// Represents an integer literal
+    INT,
 
     // Operators
-    ASSIGN,   // Represents the assignment operator
-    PLUS,     // Represents the addition operator
-    MINUS,    // Represents the subtraction operator
-    BANG,     // Represents the negation operator
-    ASTERISK, // Represents the multiplication operator
-    SLASH,    // Represents the division operator
-    LT,       // Represents the less than operator
-    GT,       // Represents the greater than operator
+    /// Represents the assignment operator
+    ASSIGN,
+
+    /// Represents the addition operator
+    PLUS,
+
+    /// Represents the subtraction operator
+    MINUS,
+
+    /// Represents the negation operator
+    BANG,
+
+    /// Represents the multiplication operator
+    ASTERISK,
+
+    /// Represents the division operator
+    SLASH,
+
+    /// Represents the less than operator
+    LT,
+
+    /// Represents the greater than operator
+    GT,
 
     // Delimiters
-    COMMA,     // Represents a comma
-    SEMICOLON, // Represents a semicolon
-    LPAREN,    // Represents a left parenthesis
-    RPAREN,    // Represents a right parenthesis
-    LBRACE,    // Represents a left brace
-    RBRACE,    // Represents a right brace
+    /// Represents a comma
+    COMMA,
+
+    /// Represents a semicolon
+    SEMICOLON,
+
+    /// Represents a left parenthesis
+    LPAREN,
+
+    /// Represents a right parenthesis
+    RPAREN,
+
+    /// Represents a left brace
+    LBRACE,
+
+    /// Represents a right brace
+    RBRACE,
 
     // Keywords
-    FUNCTION, // Represents the "fn" keyword
-    LET,      // Represents the "let" keyword
-    TRUE,     // Represents the "true" keyword
-    FALSE,    // Represents the "false" keyword
-    IF,       // Represents the "if" keyword
-    ELSE,     // Represents the "else" keyword
-    RETURN,   // Represents the "return" keyword
-    EQ,       // Represents the equality operator "=="
-    NOTEQ,    // Represents the inequality operator "!="
+    /// Represents the "fn" keyword
+    FUNCTION,
+
+    /// Represents the "let" keyword
+    LET,
+
+    /// Represents the "true" keyword
+    TRUE,
+
+    /// Represents the "false" keyword
+    FALSE,
+
+    /// Represents the "if" keyword
+    IF,
+
+    /// Represents the "else" keyword
+    ELSE,
+
+    /// Represents the "return" keyword
+    RETURN,
+
+    /// Represents the equality operator "=="
+    EQ,
+
+    /// Represents the inequality operator "!="
+    NOTEQ,
 }
 
 /// Represents a token in the Monkey programming language.
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Token {
     pub token_type: TokenType, // The type of the token
     pub literal: String,       // The literal value of the token

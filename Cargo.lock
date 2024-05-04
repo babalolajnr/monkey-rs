@@ -21,3 +21,10 @@ version = "0.1.0"
 dependencies = [
  "monkey-lexer",
 ]
+
+[[package]]
+name = "parser"
+version = "0.1.0"
+dependencies = [
+ "monkey-lexer",
+]
