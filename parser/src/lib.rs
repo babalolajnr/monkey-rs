@@ -196,7 +196,10 @@ mod tests {
 
         let mut parser = Parser::new(lexer);
 
-        let program = parser.parse_program().unwrap();
+        let program = parser.parse_program().unwrap_or_else(|err| {
+            eprintln!("Error: {:?}", err);
+            std::process::exit(1);
+        });
 
         check_parser_errors(&parser);
 
