@@ -114,8 +114,9 @@ impl Parser {
     ///
     /// An Option containing the parsed let statement, or None if parsing fails.
     fn parse_let_statement(&mut self) -> Option<ast::LetStatement> {
+        let token = self.current_token.as_ref()?;
         let mut statement = ast::LetStatement {
-            token: self.current_token.clone(),
+            token: Some(token.clone()),
             name: None,
             value: None,
         };
@@ -124,9 +125,10 @@ impl Parser {
             return None;
         }
 
+        let token = self.current_token.as_ref()?;
         statement.name = Some(ast::Identifier {
-            token: self.current_token.clone()?,
-            value: self.current_token.as_ref().unwrap().literal.clone(),
+            token: token.clone(),
+            value: token.literal.clone(),
         });
 
         if !self.expect_peek(TokenType::ASSIGN) {
