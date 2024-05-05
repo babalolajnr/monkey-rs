@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 monkey-lexer = { path = "../lexer" }
+anyhow = "1.0.81"

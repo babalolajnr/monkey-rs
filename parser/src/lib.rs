@@ -1,5 +1,6 @@
 pub mod ast;
 
+use anyhow::{anyhow, Result};
 use lexer::{
     token::{Token, TokenType},
     Lexer,
@@ -66,11 +67,19 @@ impl Parser {
     /// # Returns
     ///
     /// A boxed trait object representing the parsed statement.
-    fn parse_statement(&mut self) -> Box<dyn ast::Statement> {
-        if let TokenType::LET = self.current_token.as_ref().unwrap().token_type {
-            Box::new(self.parse_let_statement().unwrap())
+    fn parse_statement(&mut self) -> Result<Box<dyn ast::Statement>> {
+        if let TokenType::LET = self
+            .current_token
+            .as_ref()
+            .ok_or_else(|| anyhow!("No current token"))?
+            .token_type
+        {
+            if let Some(statement) = self.parse_let_statement() {
+                return Ok(Box::new(statement));
+            }
+            Err(anyhow!("Failed to parse let statement"))
         } else {
-            panic!("Invalid statement type")
+            Err(anyhow!("Invalid statement type"))
         }
     }
 
@@ -79,18 +88,18 @@ impl Parser {
     /// # Returns
     ///
     /// The parsed program as an AST.
-    pub fn parse_program(&mut self) -> ast::Program {
+    pub fn parse_program(&mut self) -> Result<ast::Program> {
         let mut program = ast::Program {
             statements: Vec::new(),
         };
 
         while self.current_token.as_ref().unwrap().token_type != TokenType::EOF {
-            let statement = self.parse_statement();
+            let statement = self.parse_statement()?;
             program.statements.push(statement);
             self.next_token();
         }
 
-        program
+        Ok(program)
     }
 
     /// Parses a let statement and returns it as an Option.
@@ -187,7 +196,7 @@ mod tests {
 
         let mut parser = Parser::new(lexer);
 
-        let program = parser.parse_program();
+        let program = parser.parse_program().unwrap();
 
         check_parser_errors(&parser);
 
