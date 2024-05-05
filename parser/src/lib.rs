@@ -44,8 +44,8 @@ impl Parser {
     }
 
     /// Returns a clone of the error messages encountered during parsing.
-    pub fn errors(&self) -> Vec<String> {
-        self.errors.clone()
+    pub fn errors(&self) -> &Vec<String> {
+        &self.errors
     }
 
     /// Reports an error for an expected token that does not match the next token.
