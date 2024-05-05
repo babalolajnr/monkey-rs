@@ -62,3 +62,21 @@ impl Statement for LetStatement {
         self
     }
 }
+
+pub struct ReturnStatement {
+    pub token: Option<Token>,
+    pub return_value: Option<Box<dyn Expression>>,
+}
+
+impl Node for ReturnStatement {
+    fn token_literal(&self) -> &str {
+        &self.token.as_ref().unwrap().literal
+    }
+}
+
+impl Statement for ReturnStatement {
+    fn statement_node(&self) {}
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}

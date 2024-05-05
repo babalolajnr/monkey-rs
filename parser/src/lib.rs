@@ -1,3 +1,4 @@
+/// The `parser` module contains the implementation of the Monkey programming language parser.
 pub mod ast;
 
 use anyhow::{anyhow, Result};
@@ -6,6 +7,7 @@ use lexer::{
     Lexer,
 };
 
+/// The `Parser` struct represents the Monkey parser.
 #[derive(Debug, Clone)]
 pub struct Parser {
     lexer: Lexer,
@@ -68,18 +70,22 @@ impl Parser {
     ///
     /// A boxed trait object representing the parsed statement.
     fn parse_statement(&mut self) -> Result<Box<dyn ast::Statement>> {
-        if let TokenType::LET = self
+        let token_type = self
             .current_token
             .as_ref()
             .ok_or_else(|| anyhow!("No current token"))?
-            .token_type
-        {
-            if let Some(statement) = self.parse_let_statement() {
-                return Ok(Box::new(statement));
-            }
-            Err(anyhow!("Failed to parse let statement"))
-        } else {
-            Err(anyhow!("Invalid statement type"))
+            .token_type;
+
+        match token_type {
+            TokenType::LET => self
+                .parse_let_statement()
+                .ok_or_else(|| anyhow!("Failed to parse let statement"))
+                .map(box_statement),
+            TokenType::RETURN => self
+                .parse_return_statement()
+                .ok_or_else(|| anyhow!("Failed to parse return statement"))
+                .map(box_statement),
+            _ => Err(anyhow!("Invalid statement type")),
         }
     }
 
@@ -134,6 +140,26 @@ impl Parser {
         Some(statement)
     }
 
+    /// Parses a return statement and returns it as an Option.
+    ///
+    /// # Returns
+    ///
+    /// An Option containing the parsed return statement, or None if parsing fails.
+    fn parse_return_statement(&mut self) -> Option<ast::ReturnStatement> {
+        let statement = ast::ReturnStatement {
+            token: self.current_token.clone(),
+            return_value: None,
+        };
+
+        self.next_token();
+
+        while !self.current_token_is(TokenType::SEMICOLON) {
+            self.next_token();
+        }
+
+        Some(statement)
+    }
+
     /// Checks if the current token matches the given token type.
     ///
     /// # Arguments
@@ -180,6 +206,19 @@ impl Parser {
     }
 }
 
+/// Boxes a statement into a trait object.
+///
+/// # Arguments
+///
+/// * `stmt` - The statement to box.
+///
+/// # Returns
+///
+/// A boxed trait object representing the statement.
+fn box_statement(stmt: impl ast::Statement) -> Box<dyn ast::Statement> {
+    Box::new(stmt)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -219,6 +258,11 @@ mod tests {
         }
     }
 
+    /// Checks if the parser has encountered any errors and panics if it has.
+    ///
+    /// # Arguments
+    ///
+    /// * `parser` - The parser to check for errors.
     fn check_parser_errors(parser: &Parser) {
         let errors = parser.errors();
         if errors.is_empty() {
@@ -231,5 +275,30 @@ mod tests {
         }
 
         panic!("parser has errors");
+    }
+
+    #[test]
+    fn test_return_statements() {
+        let input = r#"
+            return 5;
+            return 10;
+            return 993322;"#;
+
+        let lexer = Lexer::new(input.to_owned());
+
+        let mut parser = Parser::new(lexer);
+
+        let program = parser.parse_program().unwrap_or_else(|err| {
+            eprintln!("Error: {:?}", err);
+            std::process::exit(1);
+        });
+
+        check_parser_errors(&parser);
+
+        assert_eq!(program.statements.len(), 3);
+
+        for statement in program.statements {
+            assert_eq!(statement.token_literal(), "return");
+        }
     }
 }
