@@ -3,7 +3,7 @@ use std::any::Any;
 use lexer::token::Token;
 
 pub trait Node {
-    fn token_literal(&self) -> String;
+    fn token_literal(&self) -> &str;
 }
 
 pub trait Statement: Node + Any {
@@ -20,9 +20,9 @@ pub struct Program {
 }
 
 impl Program {
-    pub fn token_literal(&self) -> String {
+    pub fn token_literal(&self) -> &str {
         if self.statements.is_empty() {
-            return String::new();
+            return "";
         }
 
         self.statements[0].token_literal()
@@ -35,8 +35,8 @@ pub struct Identifier {
 }
 
 impl Node for Identifier {
-    fn token_literal(&self) -> String {
-        self.token.literal.clone()
+    fn token_literal(&self) -> &str {
+        &self.token.literal
     }
 }
 
@@ -51,8 +51,8 @@ pub struct LetStatement {
 }
 
 impl Node for LetStatement {
-    fn token_literal(&self) -> String {
-        self.token.as_ref().unwrap().literal.clone()
+    fn token_literal(&self) -> &str {
+        &self.token.as_ref().unwrap().literal
     }
 }
 
