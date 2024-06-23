@@ -134,6 +134,32 @@ impl Statement for ReturnStatement {
     }
 }
 
+pub struct ExpressionStatement {
+    pub token: Option<Token>,
+    pub expression: Option<Box<dyn Expression>>,
+}
+
+impl Node for ExpressionStatement {
+    fn token_literal(&self) -> &str {
+        &self.token.as_ref().unwrap().literal
+    }
+
+    fn string(&self) -> String {
+        if let Some(expression) = &self.expression {
+            expression.string()
+        } else {
+            String::new()
+        }
+    }
+}
+
+impl Statement for ExpressionStatement {
+    fn statement_node(&self) {}
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use lexer::token::TokenType;

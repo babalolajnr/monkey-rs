@@ -1,11 +1,24 @@
 /// The `parser` module contains the implementation of the Monkey programming language parser.
 pub mod ast;
 
-use anyhow::{anyhow, Result};
+use std::collections::HashMap;
+
+use anyhow::{anyhow, Ok, Result};
 use lexer::{
-    token::{Token, TokenType},
+    token::{self, Token, TokenType},
     Lexer,
 };
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum Precedence {
+    Lowest = 1,
+    Equals,      // ==
+    LessGreater, // > or <
+    Sum,         // +
+    Product,     // *
+    Prefix,      // -X or !X
+    Call,        // myFunction(X)
+}
 
 /// The `Parser` struct represents the Monkey parser.
 #[derive(Debug, Clone)]
@@ -14,7 +27,12 @@ pub struct Parser {
     current_token: Option<Token>,
     peek_token: Option<Token>,
     errors: Vec<String>,
+    prefix_parse_fns: HashMap<token::TokenType, PrefixParseFn>,
+    infix_parse_fns: HashMap<token::TokenType, InfixParseFn>,
 }
+
+type PrefixParseFn = fn(parser: &mut Parser) -> Box<dyn ast::Expression>;
+type InfixParseFn = fn(Box<dyn ast::Expression>) -> Box<dyn ast::Expression>;
 
 impl Parser {
     /// Creates a new Parser instance with the given Lexer.
@@ -32,11 +50,63 @@ impl Parser {
             errors: Vec::new(),
             current_token: None,
             peek_token: None,
+            prefix_parse_fns: HashMap::new(),
+            infix_parse_fns: HashMap::new(),
         };
 
         parser.next_token();
         parser.next_token();
+
+        parser.register_prefix(TokenType::IDENT, Parser::parse_identifier);
+
         parser
+    }
+
+    /// Registers a prefix parse function for the given token type.
+    fn register_prefix(&mut self, token_type: TokenType, func: PrefixParseFn) {
+        self.prefix_parse_fns.insert(token_type, func);
+    }
+
+    /// Registers an infix parse function for the given token type.
+    fn register_infix(&mut self, token_type: TokenType, func: InfixParseFn) {
+        self.infix_parse_fns.insert(token_type, func);
+    }
+
+    /// Parses an identifier and returns it as a boxed trait object.
+    fn parse_identifier(&mut self) -> Box<dyn ast::Expression> {
+        Box::new(ast::Identifier {
+            token: self.current_token.clone().expect("No current token"),
+            value: self
+                .current_token
+                .as_ref()
+                .expect("No current literal found")
+                .literal
+                .clone(),
+        })
+    }
+
+    fn parse_expression(&mut self, precedence: Precedence) -> Result<Box<dyn ast::Expression>> {
+        let prefix = self
+            .prefix_parse_fns
+            .get(&self.current_token.as_ref().unwrap().token_type)
+            .ok_or_else(|| anyhow!("No prefix parse function found"))?;
+
+        let left_exp = prefix(self);
+
+        Ok(left_exp)
+    }
+
+    fn parse_expression_statement(&mut self) -> Result<ast::ExpressionStatement> {
+        let statement = ast::ExpressionStatement {
+            token: self.current_token.clone(),
+            expression: Some(self.parse_expression(Precedence::Lowest)?),
+        };
+
+        if self.peek_token_is(TokenType::SEMICOLON) {
+            self.next_token();
+        }
+
+        Ok(statement)
     }
 
     /// Advances to the next token in the input source code.
@@ -85,7 +155,10 @@ impl Parser {
                 .parse_return_statement()
                 .ok_or_else(|| anyhow!("Failed to parse return statement"))
                 .map(box_statement),
-            _ => Err(anyhow!("Invalid statement type")),
+            _ => self
+                .parse_expression_statement()
+                .map(box_statement)
+                .map_err(|err| anyhow!("Failed to parse expression statement: {:?}", err)),
         }
     }
 
@@ -302,5 +375,35 @@ mod tests {
         for statement in program.statements {
             assert_eq!(statement.token_literal(), "return");
         }
+    }
+
+    #[test]
+    fn test_identifier_expression() {
+        let input = "foobar;";
+
+        let lexer = Lexer::new(input.to_owned());
+
+        let mut parser = Parser::new(lexer);
+
+        let program = parser.parse_program().unwrap_or_else(|err| {
+            eprintln!("Error: {:?}", err);
+            std::process::exit(1);
+        });
+
+        check_parser_errors(&parser);
+
+        assert_eq!(program.statements.len(), 1);
+
+        let statement = program.statements[0].as_ref();
+        assert_eq!(statement.token_literal(), "foobar");
+
+        let expression_statement = statement
+            .as_any()
+            .downcast_ref::<ast::ExpressionStatement>()
+            .unwrap();
+        assert_eq!(
+            expression_statement.expression.as_ref().unwrap().string(),
+            "foobar"
+        );
     }
 }

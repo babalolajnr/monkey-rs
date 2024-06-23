@@ -1,5 +1,5 @@
 /// Represents the different types of tokens in the Monkey programming language.
-#[derive(PartialEq, Debug, Clone, Copy)]
+#[derive(PartialEq, Debug, Clone, Copy, Eq, Hash)]
 pub enum TokenType {
     ILLEGAL, // Represents an illegal or unrecognized token
     EOF,     // Represents the end of the file
