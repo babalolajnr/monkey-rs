@@ -58,6 +58,7 @@ impl Parser {
         parser.next_token();
 
         parser.register_prefix(TokenType::IDENT, Parser::parse_identifier);
+        parser.register_prefix(TokenType::INT, Parser::parse_integer_literal);
 
         parser
     }
@@ -94,6 +95,19 @@ impl Parser {
         let left_exp = prefix(self);
 
         Ok(left_exp)
+    }
+
+    fn parse_integer_literal(&mut self) -> Box<dyn ast::Expression> {
+        let token = self.current_token.as_ref().unwrap();
+        let value = token
+            .literal
+            .parse::<i64>()
+            .unwrap_or_else(|_| panic!("Could not parse {} as integer", token.literal));
+
+        Box::new(ast::IntegerLiteral {
+            token: token.clone(),
+            value,
+        })
     }
 
     fn parse_expression_statement(&mut self) -> Result<ast::ExpressionStatement> {
@@ -404,6 +418,36 @@ mod tests {
         assert_eq!(
             expression_statement.expression.as_ref().unwrap().string(),
             "foobar"
+        );
+    }
+
+    #[test]
+    fn test_integer_expression() {
+        let input = "5;";
+
+        let lexer = Lexer::new(input.to_owned());
+
+        let mut parser = Parser::new(lexer);
+
+        let program = parser.parse_program().unwrap_or_else(|err| {
+            eprintln!("Error: {:?}", err);
+            std::process::exit(1);
+        });
+
+        check_parser_errors(&parser);
+
+        assert_eq!(program.statements.len(), 1);
+
+        let statement = program.statements[0].as_ref();
+        assert_eq!(statement.token_literal(), "5");
+
+        let expression_statement = statement
+            .as_any()
+            .downcast_ref::<ast::ExpressionStatement>()
+            .unwrap();
+        assert_eq!(
+            expression_statement.expression.as_ref().unwrap().string(),
+            "5"
         );
     }
 }

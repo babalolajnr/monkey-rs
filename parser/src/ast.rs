@@ -160,6 +160,25 @@ impl Statement for ExpressionStatement {
     }
 }
 
+pub struct IntegerLiteral {
+    pub token: Token,
+    pub value: i64,
+}
+
+impl Node for IntegerLiteral {
+    fn token_literal(&self) -> &str {
+        &self.token.literal
+    }
+
+    fn string(&self) -> String {
+        self.token.literal.to_owned()
+    }
+}
+
+impl Expression for IntegerLiteral {
+    fn expression_node(&self) {}
+}
+
 #[cfg(test)]
 mod tests {
     use lexer::token::TokenType;
