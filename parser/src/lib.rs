@@ -59,6 +59,8 @@ impl Parser {
 
         parser.register_prefix(TokenType::IDENT, Parser::parse_identifier);
         parser.register_prefix(TokenType::INT, Parser::parse_integer_literal);
+        parser.register_prefix(TokenType::MINUS, Parser::parse_prefix_expression);
+        parser.register_prefix(TokenType::BANG, Parser::parse_prefix_expression);
 
         parser
     }
@@ -86,15 +88,48 @@ impl Parser {
         })
     }
 
-    fn parse_expression(&mut self, precedence: Precedence) -> Result<Box<dyn ast::Expression>> {
-        let prefix = self
-            .prefix_parse_fns
-            .get(&self.current_token.as_ref().unwrap().token_type)
-            .ok_or_else(|| anyhow!("No prefix parse function found"))?;
+    /// Parses a prefix expression and returns it as a boxed trait object.
+    fn parse_prefix_expression(&mut self) -> Box<dyn ast::Expression> {
+        let token = self
+            .current_token
+            .as_ref()
+            .ok_or_else(|| anyhow!("No current token"))
+            .unwrap();
 
-        let left_exp = prefix(self);
+        let operator = token.literal.clone();
+        let token_clone = token.clone();
 
-        Ok(left_exp)
+        self.next_token();
+
+        Box::new(ast::PrefixExpression {
+            token: token_clone,
+            operator,
+            right: self.parse_expression(Precedence::Prefix).unwrap(),
+        })
+    }
+
+    /// Reports an error for an unexpected token.
+    fn no_prefix_parse_fn_error(&mut self, token_type: TokenType) {
+        self.errors
+            .push(format!("no prefix parse function for {:?}", token_type));
+    }
+
+    /// Parse an expression with the given precedence.
+    fn parse_expression(&mut self, precedence: Precedence) -> Option<Box<dyn ast::Expression>> {
+        let token_type = &self.current_token.as_ref().unwrap().token_type;
+
+        let prefix = self.prefix_parse_fns.get(token_type);
+
+        match prefix {
+            Some(prefix) => {
+                let left_exp = prefix(self);
+                Some(left_exp)
+            }
+            None => {
+                self.no_prefix_parse_fn_error(*token_type);
+                None
+            }
+        }
     }
 
     fn parse_integer_literal(&mut self) -> Box<dyn ast::Expression> {
@@ -113,7 +148,7 @@ impl Parser {
     fn parse_expression_statement(&mut self) -> Result<ast::ExpressionStatement> {
         let statement = ast::ExpressionStatement {
             token: self.current_token.clone(),
-            expression: Some(self.parse_expression(Precedence::Lowest)?),
+            expression: Some(self.parse_expression(Precedence::Lowest).unwrap()),
         };
 
         if self.peek_token_is(TokenType::SEMICOLON) {
@@ -449,5 +484,84 @@ mod tests {
             expression_statement.expression.as_ref().unwrap().string(),
             "5"
         );
+    }
+
+    #[test]
+    fn test_parsing_prefix_expressions() {
+        let prefix_tests = [("!5;", "!", "5"), ("-15;", "-", "15")];
+
+        for (input, operator, value) in prefix_tests.iter() {
+            let lexer = Lexer::new(input.to_string());
+
+            let mut parser = Parser::new(lexer);
+
+            let program = parser.parse_program().unwrap_or_else(|err| {
+                eprintln!("Error: {:?}", err);
+                std::process::exit(1);
+            });
+
+            check_parser_errors(&parser);
+
+            assert_eq!(program.statements.len(), 1);
+
+            let stmt = program.statements[0]
+                .as_any()
+                .downcast_ref::<ast::ExpressionStatement>()
+                .unwrap_or_else(|| {
+                    panic!(
+                        "program.statements[0] is not ast::ExpressionStatement. got={:?}",
+                        program.statements[0]
+                    )
+                });
+
+            let exp = stmt
+                .expression
+                .as_ref()
+                .unwrap()
+                .as_any()
+                .downcast_ref::<ast::PrefixExpression>()
+                .unwrap_or_else(|| {
+                    panic!(
+                        "stmt is not ast::PrefixExpression. got={:?}",
+                        stmt.expression
+                    )
+                });
+
+            assert_eq!(
+                exp.operator, *operator,
+                "exp.Operator is not '{}'. got={}",
+                operator, exp.operator
+            );
+
+            if !test_integer_literal(
+                exp.right.as_ref(),
+                value.parse::<i64>().expect("Could not parse value as i64"),
+            ) {
+                return;
+            }
+        }
+    }
+
+    fn test_integer_literal(il: &dyn ast::Expression, value: i64) -> bool {
+        let int_lit = il
+            .as_any()
+            .downcast_ref::<ast::IntegerLiteral>()
+            .unwrap_or_else(|| panic!("il not ast::IntegerLiteral. got={:?}", il));
+
+        assert_eq!(
+            int_lit.value, value,
+            "int_lit.value not {}. got={}",
+            value, int_lit.value
+        );
+
+        assert_eq!(
+            ast::Node::token_literal(int_lit),
+            value.to_string(),
+            "int_lit.token_literal not {}. got={}",
+            value,
+            ast::Node::token_literal(int_lit)
+        );
+
+        true
     }
 }

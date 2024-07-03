@@ -1,4 +1,4 @@
-use std::any::Any;
+use std::{any::Any, fmt::Debug};
 
 use lexer::token::Token;
 
@@ -7,13 +7,14 @@ pub trait Node {
     fn string(&self) -> String;
 }
 
-pub trait Statement: Node + Any {
+pub trait Statement: Node + Any + Debug {
     fn statement_node(&self);
     fn as_any(&self) -> &dyn Any;
 }
 
-pub trait Expression: Node {
+pub trait Expression: Node + Any + Debug {
     fn expression_node(&self);
+    fn as_any(&self) -> &dyn Any;
 }
 
 pub struct Program {
@@ -40,6 +41,7 @@ impl Program {
     }
 }
 
+#[derive(Debug)]
 pub struct Identifier {
     pub token: Token,
     pub value: String,
@@ -57,8 +59,13 @@ impl Node for Identifier {
 
 impl Expression for Identifier {
     fn expression_node(&self) {}
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
+#[derive(Debug)]
 pub struct LetStatement {
     pub token: Option<Token>,
     pub name: Option<Identifier>,
@@ -98,6 +105,7 @@ impl Statement for LetStatement {
     }
 }
 
+#[derive(Debug)]
 pub struct ReturnStatement {
     pub token: Option<Token>,
     pub return_value: Option<Box<dyn Expression>>,
@@ -134,6 +142,7 @@ impl Statement for ReturnStatement {
     }
 }
 
+#[derive(Debug)]
 pub struct ExpressionStatement {
     pub token: Option<Token>,
     pub expression: Option<Box<dyn Expression>>,
@@ -160,6 +169,7 @@ impl Statement for ExpressionStatement {
     }
 }
 
+#[derive(Debug)]
 pub struct IntegerLiteral {
     pub token: Token,
     pub value: i64,
@@ -177,6 +187,40 @@ impl Node for IntegerLiteral {
 
 impl Expression for IntegerLiteral {
     fn expression_node(&self) {}
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+#[derive(Debug)]
+pub struct PrefixExpression {
+    pub token: Token,
+    pub operator: String,
+    pub right: Box<dyn Expression>,
+}
+
+impl Node for PrefixExpression {
+    fn token_literal(&self) -> &str {
+        &self.token.literal
+    }
+
+    fn string(&self) -> String {
+        let mut s = String::new();
+
+        s.push('(');
+        s.push_str(&self.operator);
+        s.push_str(&self.right.string());
+        s.push(')');
+
+        s
+    }
+}
+
+impl Expression for PrefixExpression {
+    fn expression_node(&self) {}
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 #[cfg(test)]
