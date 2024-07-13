@@ -135,7 +135,7 @@ impl TokenType {
     pub const ELSE: &'static str = "ELSE";
     pub const RETURN: &'static str = "RETURN";
     pub const EQ: &'static str = "==";
-    pub const NOT_EQ: &'static str = "!=";
+    pub const NOTEQ: &'static str = "!=";
 }
 
 /// Looks up the TokenType for a given identifier.

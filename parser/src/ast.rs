@@ -223,6 +223,42 @@ impl Expression for PrefixExpression {
     }
 }
 
+// Resume here
+#[derive(Debug)]
+pub struct InfixExpression {
+    pub token: Token,
+    pub left: Box<dyn Expression>,
+    pub operator: String,
+    pub right: Box<dyn Expression>,
+}
+
+impl Node for InfixExpression {
+    fn token_literal(&self) -> &str {
+        &self.token.literal
+    }
+
+    fn string(&self) -> String {
+        let mut s = String::new();
+
+        s.push('(');
+        s.push_str(&self.left.string());
+        s.push(' ');
+        s.push_str(&self.operator);
+        s.push(' ');
+        s.push_str(&self.right.string());
+        s.push(')');
+
+        s
+    }
+}
+
+impl Expression for InfixExpression {
+    fn expression_node(&self) {}
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use lexer::token::TokenType;

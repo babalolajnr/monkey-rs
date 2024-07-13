@@ -20,6 +20,32 @@ enum Precedence {
     Call,        // myFunction(X)
 }
 
+impl Precedence {
+    /// Returns the precedence for the given token type.
+    ///
+    /// # Arguments
+    ///
+    /// * `token_type` - The token type to get the precedence for.
+    ///
+    /// # Returns
+    ///
+    /// The precedence for the given token type.
+    fn for_token_type(token_type: &TokenType) -> Precedence {
+        match token_type {
+            TokenType::EQ => Precedence::Equals,
+            TokenType::NOTEQ => Precedence::Equals,
+            TokenType::LT => Precedence::LessGreater,
+            TokenType::GT => Precedence::LessGreater,
+            TokenType::PLUS => Precedence::Sum,
+            TokenType::MINUS => Precedence::Sum,
+            TokenType::SLASH => Precedence::Product,
+            TokenType::ASTERISK => Precedence::Product,
+            TokenType::LPAREN => Precedence::Call,
+            _ => Precedence::Lowest,
+        }
+    }
+}
+
 /// The `Parser` struct represents the Monkey parser.
 #[derive(Debug, Clone)]
 pub struct Parser {
@@ -32,7 +58,7 @@ pub struct Parser {
 }
 
 type PrefixParseFn = fn(parser: &mut Parser) -> Box<dyn ast::Expression>;
-type InfixParseFn = fn(Box<dyn ast::Expression>) -> Box<dyn ast::Expression>;
+type InfixParseFn = fn(parser: &mut Parser, Box<dyn ast::Expression>) -> Box<dyn ast::Expression>;
 
 impl Parser {
     /// Creates a new Parser instance with the given Lexer.
@@ -62,7 +88,42 @@ impl Parser {
         parser.register_prefix(TokenType::MINUS, Parser::parse_prefix_expression);
         parser.register_prefix(TokenType::BANG, Parser::parse_prefix_expression);
 
+        parser.register_infix(TokenType::PLUS, Parser::parse_infix_expression);
+        parser.register_infix(TokenType::MINUS, Parser::parse_infix_expression);
+        parser.register_infix(TokenType::SLASH, Parser::parse_infix_expression);
+        parser.register_infix(TokenType::ASTERISK, Parser::parse_infix_expression);
+        parser.register_infix(TokenType::EQ, Parser::parse_infix_expression);
+        parser.register_infix(TokenType::NOTEQ, Parser::parse_infix_expression);
+        parser.register_infix(TokenType::LT, Parser::parse_infix_expression);
+        parser.register_infix(TokenType::GT, Parser::parse_infix_expression);
         parser
+    }
+
+    fn parse_infix_expression(
+        &mut self,
+        left: Box<dyn ast::Expression>,
+    ) -> Box<dyn ast::Expression> {
+        let token = self
+            .current_token
+            .as_ref()
+            .expect("No current token")
+            .clone();
+
+        let operator = token.literal.clone();
+
+        let precedence = self.current_precedence();
+        self.next_token();
+
+        let right = self
+            .parse_expression(precedence)
+            .expect("No right expression found");
+
+        Box::new(ast::InfixExpression {
+            token,
+            left,
+            operator,
+            right,
+        })
     }
 
     /// Registers a prefix parse function for the given token type.
@@ -122,7 +183,24 @@ impl Parser {
 
         match prefix {
             Some(prefix) => {
-                let left_exp = prefix(self);
+                let mut left_exp = prefix(self);
+
+                while !self.peek_token_is(TokenType::SEMICOLON)
+                    && precedence < self.peek_precedence()
+                {
+                    let cloned_parser = self.clone();
+                    let infix = cloned_parser
+                        .infix_parse_fns
+                        .get(&self.peek_token.as_ref().unwrap().token_type);
+
+                    match infix {
+                        Some(infix) => {
+                            self.next_token();
+                            left_exp = infix(self, left_exp);
+                        }
+                        None => break,
+                    }
+                }
                 Some(left_exp)
             }
             None => {
@@ -130,6 +208,24 @@ impl Parser {
                 None
             }
         }
+    }
+
+    /// Returns the precedence of the next token.
+    /// If the next token is not found, the lowest precedence is returned.
+    /// Otherwise, the precedence of the next token is returned.
+    fn peek_precedence(&self) -> Precedence {
+        self.peek_token
+            .as_ref()
+            .map(|t| Precedence::for_token_type(&t.token_type))
+            .unwrap_or(Precedence::Lowest)
+    }
+
+    /// Returns the precedence of the current token.
+    fn current_precedence(&self) -> Precedence {
+        self.current_token
+            .as_ref()
+            .map(|t| Precedence::for_token_type(&t.token_type))
+            .unwrap_or(Precedence::Lowest)
     }
 
     fn parse_integer_literal(&mut self) -> Box<dyn ast::Expression> {
@@ -563,5 +659,71 @@ mod tests {
         );
 
         true
+    }
+
+    #[test]
+    fn test_parsing_infix_expressions() {
+        let infix_tests = [
+            ("5 + 5;", 5, "+", 5),
+            ("5 - 5;", 5, "-", 5),
+            ("5 * 5;", 5, "*", 5),
+            ("5 / 5;", 5, "/", 5),
+            ("5 > 5;", 5, ">", 5),
+            ("5 < 5;", 5, "<", 5),
+            ("5 == 5;", 5, "==", 5),
+            ("5 != 5;", 5, "!=", 5),
+        ];
+
+        for (input, left_value, operator, right_value) in infix_tests.iter() {
+            let lexer = Lexer::new(input.to_string());
+
+            let mut parser = Parser::new(lexer);
+
+            let program = parser.parse_program().unwrap_or_else(|err| {
+                eprintln!("Error: {:?}", err);
+                std::process::exit(1);
+            });
+
+            check_parser_errors(&parser);
+
+            assert_eq!(program.statements.len(), 1);
+
+            let stmt = program.statements[0]
+                .as_any()
+                .downcast_ref::<ast::ExpressionStatement>()
+                .unwrap_or_else(|| {
+                    panic!(
+                        "program.statements[0] is not ast::ExpressionStatement. got={:?}",
+                        program.statements[0]
+                    )
+                });
+
+            let exp = stmt
+                .expression
+                .as_ref()
+                .unwrap()
+                .as_any()
+                .downcast_ref::<ast::InfixExpression>()
+                .unwrap_or_else(|| {
+                    panic!(
+                        "stmt is not ast::InfixExpression. got={:?}",
+                        stmt.expression
+                    )
+                });
+
+            if !test_integer_literal(exp.left.as_ref(), *left_value) {
+                return;
+            }
+
+            assert_eq!(
+                exp.operator, *operator,
+                "exp.Operator is not '{}'. got={}",
+                operator, exp.operator
+            );
+
+            if !test_integer_literal(exp.right.as_ref(), *right_value) {
+                return;
+            }
+        }
     }
 }
