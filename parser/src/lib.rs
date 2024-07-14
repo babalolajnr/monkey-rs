@@ -726,4 +726,44 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn test_operator_precedence_parsing() {
+        let test_cases = [
+            ("-a * b", "((-a) * b)"),
+            ("!-a", "(!(-a))"),
+            ("a + b + c", "((a + b) + c)"),
+            ("a * b * c", "((a * b) * c)"),
+            ("a * b / c", "((a * b) / c)"),
+            ("a + b / c", "(a + (b / c))"),
+            ("a + b * c + d / e - f", "(((a + (b * c)) + (d / e)) - f)"),
+            ("3 + 4; -5 * 5", "(3 + 4)((-5) * 5)"),
+            ("5 > 4 == 3 < 4", "((5 > 4) == (3 < 4))"),
+            ("5 < 4 != 3 > 4", "((5 < 4) != (3 > 4))"),
+            (
+                "3 + 4 * 5 == 3 * 1 + 4 * 5",
+                "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
+            ),
+            (
+                "3 + 4 * 5 == 3 * 1 + 4 * 5",
+                "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
+            ),
+        ];
+
+        for (input, expected) in test_cases.iter() {
+            let lexer = Lexer::new(input.to_string());
+
+            let mut parser = Parser::new(lexer);
+
+            let program = parser.parse_program().unwrap_or_else(|err| {
+                eprintln!("Error: {:?}", err);
+                std::process::exit(1);
+            });
+
+            check_parser_errors(&parser);
+
+            let actual = program.string();
+            assert_eq!(actual, *expected);
+        }
+    }
 }
